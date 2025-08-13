@@ -233,10 +233,10 @@ void pca9685_set_pwm(I2C_HandleTypeDef *hi2c, uint8_t channel, uint16_t on, uint
 * `/docs` — this README, safety report template, upgrade roadmap
 
 **License**
-Use a permissive license for educational & portfolio use (e.g., MIT). Add `LICENSE` file.
+Use a permissive license for educational & portfolio use.
 
 
 **Status & Contact**
-Prepared by: `[Steve Stavros Prokovas / Hellenic Open University Laboratory of Mobile and Diffuse Computing, Quality and Surrounding Intelligence
-]`
+Prepared by: 
+`[Steve Stavros Prokovas / Hellenic Open University Laboratory of Mobile and Diffuse Computing, Quality and Surrounding Intelligence]`
 Version: v1.0 — Educational Prototype Release.
