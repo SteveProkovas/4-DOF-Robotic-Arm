@@ -1,242 +1,195 @@
-# 4-DOF Robotic Arm Prototype — Educational Edition v1.0
+# **4-DOF Robotic Arm Prototype — Educational Edition v1.0**  
 
-**Project summary (Executive summary)**
-This repository documents the design and implementation of a professional-quality prototype 4-DOF robotic arm using 4 hobby servos, with the **DSD-i1** development board (STM32F1 + FPGA) as the main controller for PWM generation and system coordination. The first phase implements open-loop position control (fast prototyping), and the design, code and hardware layout are structured for a later engineering upgrade to closed-loop actuators with encoders and FPGA acceleration.
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)  
+![Robotic Arm Demo](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeG9hZ2R0dWQ4aGQzZ3U3eWQ0Y2JzM2R6dG5lZzZ4eDBqY2V0eGZ0dyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ohs4kU3GpQOQMQFEw/giphy.gif)  
 
-> References: consult the DSD-i1 pinout for exact header mappings and the laboratory guide for FPGA / STM32 design flow. &#x20;
 
----
-
-## Table of Contents
-
-1. Goals & Deliverables
-2. System architecture (high level)
-3. Professional BOM (recommendations)
-4. Required tools & software
-5. Quick start (5-minute executive flow)
-6. Wiring & power (safe, production-minded)
-7. CubeMX / Timer configuration (validated numeric)
-8. Firmware structure & critical snippets
-9. Calibration, validation & KPIs
-10. Upgrade roadmap (encoders + FPGA)
-11. Deliverables, license & contribution guidelines
-12. Next steps (what I will produce for you)
+## ⚠️ **Critical Safety Notice**  
+**Electrical Safety:**  
+- Use **bidirectional logic-level shifters** for I²C/PWM signals between 5V devices (PCA9685) and 3.3V STM32.  
+- Servo power **MUST** use fused external 5V PSU (>6A) with kill switch.  
+**Mechanical Safety:**  
+- Verify joint limits before powering servos.  
+- Install mechanical stops to prevent over-rotation.  
 
 ---
 
-## 1. Goals & Deliverables
-
-**Primary goals**
-
-* Deliver a robust, demonstrable 4-DOF arm prototype suitable for demos and portfolio use.
-* Provide engineering-grade documentation, reproducible build flow, safety controls and test procedures.
-* Implement Phase-1: open-loop control using 4 hobby servos and STM32 PWM.
-* Provide a clear migration path to Phase-2: closed-loop actuation using encoders, motor drivers and FPGA modules.
-
-**Phase-1 deliverables**
-
-* Wiring diagrams and precise pin mapping for DSD-i1.&#x20;
-* CubeMX project template (TIMx PWM configuration) and ready-to-flash HAL firmware.
-* PCA9685 I²C driver example (optional approach for fast scaling).
-* Test scripts, calibration utilities and performance logging templates.
+## **Executive Summary**  
+This repository documents the design of a 4-DOF robotic arm prototype using **STM32F1 + FPGA (DSD-i1)** for PWM control. Designed for educational use at HOU's Mobile Computing Lab, it features:  
+- **Phase 1:** Open-loop control with hobby servos (MG90S/MG996R)  
+- **Phase 2 Roadmap:** Closed-loop control with encoders + FPGA-accelerated PID  
+- **Industrial-Grade Practices:** Safety protocols, validation KPIs, and upgrade path  
 
 ---
 
-## 2. System architecture (concise)
-
-* **High-level controller:** DSD-i1 (STM32F103) — PWM generation, CLI/telemetry, optional I²C to PWM expander.&#x20;
-* **Actuation (Phase-1):** 4 × hobby servos (open-loop).
-* **Power:** external 5 V supply for servos (fused + kill switch). DSD-i1 powered independently (USB / on-board regulator).
-* **Safety & monitoring:** fuse, kill switch, shared GND, current & temperature monitoring (recommended).
-
----
-
-## 3. Professional BOM (recommended)
-
-**Prototype (Phase-1)**
-
-* DSD-i1 development board (STM32F103 + Cyclone IV FPGA).&#x20;
-* 4 × hobby servos — prefer metal-gear, choose torque rating to match arm geometry (e.g., MG90S for small loads; MG996R/metal gear for higher torque).
-* 5 V PSU, 6 A (or LiPo + high-current BEC capable of stall currents).
-* Fuse 6 A (fast blow), inline kill-switch (SPST).
-* PCA9685 16-channel PWM driver (Adafruit / compatible) — optional (recommended for rapid development).
-* Common-ground wiring, JST/servo connectors, heat-shrink, PDB (power distribution board).
-* Mechanical parts: 3D-printed brackets or laser-cut plates, bearings, limit stops.
-
-**Upgrade (Phase-2)**
-
-* Incremental encoders (100–1024 CPR) or Dynamixel smart actuators (for integrated feedback).
-* Motor drivers (Roboclaw / ODrive / custom H-bridge) as appropriate.
-* FPGA toolchain (Quartus), VHDL testbenches, CAN/SPI hardware for MCU↔FPGA comms.
+## **Table of Contents**  
+1. [System Architecture](#1-system-architecture)  
+2. [Professional BOM](#2-professional-bom)  
+3. [Wiring & Power](#3-wiring--power)  
+4. [Firmware Implementation](#4-firmware-implementation)  
+5. [Calibration & Validation](#5-calibration--validation)  
+6. [Phase 2 Roadmap](#6-phase-2-roadmap)  
+7. [Repository Structure](#7-repository-structure)  
+8. [Next Steps](#8-next-steps)  
+9. [License & Contact](#9-license--contact)  
 
 ---
 
-## 4. Required tools & software
-
-* STM32CubeIDE / STM32CubeMX (generate config + flash)
-* ST-Link / USB interface for flashing the DSD-i1
-* Python 3.8+ (scripts for calibration & logs)
-* Multimeter, current clamp or bench PSU with current readout
-* Oscilloscope / logic analyzer (recommended for PWM validation)
-* Optional: Adafruit PCA9685 library examples (for PCA9685 route)
-
----
-
-## 5. Quick start (5-minute executive flow)
-
-1. Review the DSD-i1 pinout and lab guide. &#x20;
-2. Wire the PSUs: PSU +5 V → fuse → kill-switch → servo V+. Do **not** power servos from the DSD-i1.
-3. Connect PSU GND to the DSD-i1 GND (single common ground).&#x20;
-4. If using PCA9685: wire SDA/SCL to STM32 I²C pins and power PCA9685 from servo PSU.
-5. Flash the CubeMX HAL project (TIMx PWM config) to the DSD-i1.
-6. Send initial neutral pulses (1.5 ms) to each servo; verify mechanical limits and safe motion.
+## **1. System Architecture**  
+```mermaid  
+graph TD  
+  A[DSD-i1 Controller\nSTM32F103 + FPGA] -->|PWM| B[Servo 1 MG996R]  
+  A -->|PWM| C[Servo 2 MG90S]  
+  A -->|I²C| D[PCA9685 PWM Expander]  
+  D -->|PWM| E[Servo 3 MG90S]  
+  D -->|PWM| F[Servo 4 MG90S]  
+  G[5V 6A PSU] -->|Fused/Kill Switch| H[Servo Power Bus]  
+  G -->|Level Shifter| D  
+  A -->|UART| I[PC for CLI/Telemetry]  
+```  
+**Key Interfaces:**  
+- **PWM Generation:** STM32 Timers (72 MHz) → 50 Hz, 1μs resolution  
+- **FPGA Future Use:** Quadrature decoding for encoders (VHDL module)  
+- **Safety:** Current/temperature monitoring (ADC channels)  
 
 ---
 
-## 6. Wiring & power — safe, production-minded (textual schematic)
+## **2. Professional BOM**  
+**Core Components (Phase 1)**  
+| Item | Specification | Qty |  
+|------|--------------|-----|  
+| DSD-i1 Dev Board | STM32F103 + Cyclone IV FPGA | 1 |  
+| Servos | MG996R (Base), MG90S (Joints 2-4) | 4 |  
+| Power Supply | 5V 6A PSU w/ Overcurrent Protection | 1 |  
+| Logic Level Shifter | TXS0108E (Bidirectional) | 1 |  
+| Fuse | 6A Fast-Blow | 1 |  
+| Kill Switch | SPST High-Current | 1 |  
 
-**Power distribution (recommended)**
-
-```
-PSU +5V  ──→ [Fuse 6A] ──→ [Kill switch] ──→ Servo V+
-PSU GND ───────────────────────────────────→ common GND bus ──→ DSD-i1 GND
-```
-
-**Signal wiring options**
-
-* **Direct PWM (Option A)** — STM32 TIMx\_CH1..CH4 → Servo SIGNALs (use pins mapped to timers on DSD-i1). Ensure the STM32 pin mapping uses timer channels with the CubeMX config.&#x20;
-* **PCA9685 I²C (Option B, recommended for speed & scaling)** — PCA9685 V+ → servo PSU; PCA9685 GND → common GND; PCA9685 SDA/SCL → STM32 I2C pins; PCA9685 OUT0..3 → servo SIGNALs.
-
-**Signal level note:** DSD-i1 I/O is 3.3 V TTL. Most hobby servos accept 3.3 V control signals; verify servo input tolerance. If a servo strictly requires 5 V logic, add a level shifter.
-
----
-
-## 7. CubeMX / Timer configuration (validated numeric)
-
-**Assumptions:** STM32 timer clock = 72 MHz (typical for STM32F1).
-
-**Target:** 50 Hz PWM (20 ms period), fine resolution (\~1 µs per tick).
-**Recommended timer settings**
-
-* Prescaler (PSC) = **71** → timer tick = 72 MHz / (PSC + 1) = 1 MHz → 1 tick = 1 µs
-* Auto-reload (ARR) = **19,999** → period = 20,000 ticks = 20 ms → 50 Hz
-* Compare (CCR) mapping: 1.0 ms → 1000, 1.5 ms → 1500, 2.0 ms → 2000
-
-**CubeMX steps (summary)**
-
-1. Set SystemClock = 72 MHz.
-2. Enable TIMx (e.g., TIM2) and configure CH1..CH4 as PWM Generation (Mode 1).
-3. Set PSC = 71, ARR = 19999. Generate project and open in STM32CubeIDE.
-4. Implement `set_servo_ms()` wrapper to map ms → CCR.
+**Mechanical Assembly**  
+- 3D-Printed Brackets ([STL Files](/hardware/cad))  
+- Axial Bearings (ID 6mm)  
+- Payload Capacity: **100g @ 15cm** (τ = m×g×L = 0.1×9.8×0.15 ≈ 0.15 Nm)  
 
 ---
 
-## 8. Firmware structure & critical snippets
+## **3. Wiring & Power**  
+**Power Distribution**  
+```  
+PSU +5V → [Fuse 6A] → [Kill Switch] → Servo V+  
+PSU GND → Common GND Bus → DSD-i1 GND  
+```  
 
-**Suggested repository layout**
+**Signal Routing**  
+| Signal | Path | Voltage |  
+|--------|------|---------|  
+| STM32 I²C | STM32 → Level Shifter → PCA9685 | 3.3V → 5V |  
+| PWM Output | PCA9685 → Servo SIGNAL | 5V |  
+| Direct PWM | STM32 → Servo SIGNAL | 3.3V (verify servo tolerance) |  
 
-```
-/firmware
-  /Core, /Drivers (CubeMX generated)
-  /Src
-    main.c
-    pwm_control.c       // PWM abstraction
-    i2c_pca9685.c       // optional PCA9685 driver
-    cli.c               // serial command interface
-  /Inc
-    pwm_control.h
-    config.h
-```
-
-**Critical servo setter (HAL)**
-
-```c
-// PSC = 71, ARR = 19999 -> 1 tick = 1 us
-void set_servo_ms(TIM_HandleTypeDef *htim, uint32_t channel, float ms) {
-    uint32_t compare = (uint32_t)(ms * 1000.0f); // 1.5 ms => 1500
-    __HAL_TIM_SET_COMPARE(htim, channel, compare);
-}
-```
-
-**PCA9685 minimal write (HAL I2C)**
-
-```c
-// Using HAL I2C, PCA9685 default addr 0x40 (7-bit)
-void pca9685_set_pwm(I2C_HandleTypeDef *hi2c, uint8_t channel, uint16_t on, uint16_t off) {
-  uint8_t buf[5];
-  buf[0] = LED0_ON_L + 4*channel;
-  buf[1] = on & 0xFF;
-  buf[2] = (on >> 8) & 0xFF;
-  buf[3] = off & 0xFF;
-  buf[4] = (off >> 8) & 0xFF;
-  HAL_I2C_Master_Transmit(hi2c, PCA_ADDR, buf, 5, HAL_MAX_DELAY);
-}
-```
-
-**Command interface (recommended)**
-
-* Implement a simple serial CLI: `SERVO <id> <ms>`, `CALIB <id>`, `STATUS`, `TESTCYCLE`. This is essential for demonstrations and calibration.
+> **⚠️ Critical:** Never power servos from DSD-i1's USB!  
 
 ---
 
-## 9. Calibration, validation & KPIs (engineering tests)
+## **4. Firmware Implementation**  
+**Key Files**  
+```  
+/firmware  
+  /Core          # CubeMX HAL  
+  /App  
+    pwm_control.c    # Integer PWM setters  
+    i2c_pca9685.c    # Level-shifted I²C driver  
+    cli.c            # Command interface  
+```  
 
-**Calibration procedure**
+**Efficient PWM Control (No Float!)**  
+```c  
+// Set servo pulse in microseconds (1.5ms = 1500µs)  
+void set_servo_us(TIM_HandleTypeDef *htim, uint32_t channel, uint16_t us) {  
+  __HAL_TIM_SET_COMPARE(htim, channel, us);  
+}  
 
-1. Neutral: set 1.5 ms → verify mechanical center.
-2. Sweep: slowly sweep 1.0 ms → 2.0 ms to detect mechanical endpoints. Record safe min/max (e.g., 1.05–1.95 ms).
-3. Map ms ↔ joint angle: sample a few points and fit linear mapping; save per-joint JSON calibration.
+// PCA9685 I²C Write (with level-shifted safety)  
+HAL_StatusTypeDef pca9685_write(I2C_HandleTypeDef *hi2c, uint8_t reg, uint8_t data) {  
+  uint8_t buf[2] = {reg, data};  
+  return HAL_I2C_Master_Transmit(hi2c, PCA_ADDR << 1, buf, 2, 100);  
+}  
+```  
 
-**Validation tests & KPIs**
-
-* **Repeatability:** (with encoders later) target < 1° RMSE.
-* **Power:** measure idle, nominal motion and stall currents; PSU should maintain voltage within 5% under load.
-* **Thermal:** servo temperature after 10 min cycling < 60 °C (target).
-* **Latency:** command to movement measured via logic analyzer (documented).
-
-**Acceptance criteria example**
-
-* No fuse trips in normal operation; kill switch cuts servo power immediately.
-* Repeatability within mechanical limits; no mechanical interference.
-* Smooth motion without jitter (verify common GND, clean PWM).
-
----
-
-## 10. Upgrade roadmap (Phase-2: encoders + FPGA acceleration)
-
-**Short term**
-
-* Add encoder to one joint; validate quadrature decoding and closed-loop PID on STM32.
-* Implement a VHDL quadrature decoder module and testbench (ModelSim).&#x20;
-
-**Medium term**
-
-* Offload inner control loop (fast PID) to FPGA for ultra low latency; STM32 remains trajectory & high-level planner.
-* Use robust MCU↔FPGA communication (SPI / CAN) with heartbeat and telemetry.
-* Integrate safety interlocks in FPGA (watchdog, current limit monitor).
-
-**Deliverables for Phase-2**
-
-* VHDL `quad_decoder` + testbench.
-* FPGA ↔ STM32 comms protocol spec.
-* Closed-loop tuning report (PID gains, bandwidth tests).
+**CLI Commands**  
+```  
+SERVO 2 1500    # Set Servo 2 to 1500µs  
+CALIB J1         # Start calibration for Joint 1  
+SAFELIMITS 1 900 2100  # Set software limits  
+```  
 
 ---
 
-## 11. Deliverables, license & contributing
+## **5. Calibration & Validation**  
+**Calibration Procedure**  
+1. **Neutral Position:** `SERVO [id] 1500`  
+2. **Sweep Limits:** Gradually move from 1000→2000µs, record min/max  
+3. **Angle Mapping:**  
+   ```json  
+   {"joint1": {"min_us": 900, "max_us": 2100, "max_deg": 180}}  
+   ```  
 
-**Repository contents (recommended)**
+**Phase 1 Validation KPIs**  
+| Metric | Target | Test Method |  
+|--------|--------|-------------|  
+| Repeatability | ±5° (visual) | Return-to-home test |  
+| PWM Jitter | <10µs | Oscilloscope measurement |  
+| Thermal Stability | <60°C | IR thermometer after 10min ops |  
+| Current Draw (idle) | <500mA | Bench PSU monitoring |  
 
-* `/hardware` — wiring diagrams (PDF/PNG), BOM.csv
-* `/firmware` — CubeMX project, HAL code, PCA9685 driver, example CLI
-* `/tests` — calibration scripts, log parsers, sample CSV results
-* `/docs` — this README, safety report template, upgrade roadmap
+---
 
-**License**
-Use a permissive license for educational & portfolio use.
+## **6. Phase 2 Roadmap**  
+**FPGA-Accelerated Control**  
+```mermaid  
+sequenceDiagram  
+  STM32->>FPGA: Setpoint (SPI/CAN)  
+  FPGA->>Encoder: Quadrature Counting (VHDL)  
+  FPGA->>PID: Error Calculation  
+  FPGA->>PWM: Adjust Duty Cycle  
+  FPGA->>STM32: Telemetry (Position, Current)  
+```  
 
+**Milestones**  
+1. Add AMT102-V encoders (1024 CPR) to Joints 1-2  
+2. Implement VHDL quadrature decoder  
+3. Offload PID to FPGA (100kHz update rate)  
+4. Integrate ODrive for closed-loop torque control  
 
-**Status & Contact**
-Prepared by: 
-`[Steve Stavros Prokovas / Hellenic Open University Laboratory of Mobile and Diffuse Computing, Quality and Surrounding Intelligence]`
-Version: v1.0 — Educational Prototype Release.
+---
+
+## **7. Repository Structure**  
+```  
+/docs  
+  SAFETY.md             # Risk assessment template  
+  validation_report.pdf # Sample KPI report  
+/hardware  
+  /cad                  # STL files for 3D printing  
+  wiring_diagram.pdf    # Production-grade schematics  
+/firmware  
+  CubeMX.ioc            # STM32 configuration  
+  /App                  # Core application code  
+/scripts  
+  calibrate_arm.py      # Joint calibration utility  
+  kpi_analyzer.py       # Validation log parser  
+```  
+
+---
+
+## **8. Next Steps**  
+- [ ] Assemble Phase 1 prototype using STL files  
+- [ ] Collect thermal/current validation data  
+- [ ] Integrate Bluetooth control (HC-05 module)  
+- [ ] Develop MATLAB GUI for kinematics simulation  
+- [ ] Implement encoder feedback on Joint 1  
+
+---
+
+## **9. License & Contact**  
+**License:** [Apache 2.0](/LICENSE) - Open for academic/industrial collaboration  
+**Project Lead:** Steve Stavros Prokovas  
+**Affiliation:** Laboratory of Mobile and Diffuse Computing, Quality and Surrounding Intelligence, Hellenic Open University  
