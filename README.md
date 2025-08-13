@@ -1,8 +1,6 @@
 # **4-DOF Robotic Arm Prototype — Educational Edition v1.0**  
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)  
-![Robotic Arm Demo](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExeG9hZ2R0dWQ4aGQzZ3U3eWQ0Y2JzM2R6dG5lZzZ4eDBqY2V0eGZ0dyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ohs4kU3GpQOQMQFEw/giphy.gif)  
-
 
 ## ⚠️ **Critical Safety Notice**  
 **Electrical Safety:**  
