@@ -190,4 +190,4 @@ sequenceDiagram
 ## **9. License & Contact**  
 **License:** [Apache 2.0](/LICENSE) - Open for academic/industrial collaboration  
 **Project Lead:** Steve Stavros Prokovas  
-**Affiliation:** Laboratory of Mobile and Diffuse Computing, Quality and Surrounding Intelligence, Hellenic Open University  
+**Affiliation:** Laboratory of Digital Systems, Hellenic Open University  
