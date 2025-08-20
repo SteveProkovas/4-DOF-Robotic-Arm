@@ -1,43 +1,85 @@
 # Robotic Arm Controller - VHDL Implementation
 
 ## Overview
-This project implements a 4-degree-of-freedom robotic arm controller using VHDL. The design features a ring counter that sequentially activates motor enable signals in either clockwise or counter-clockwise direction based on user input.
+This project implements a 4-degree-of-freedom robotic arm controller using VHDL. The design features a state machine that controls four motors with position tracking, limit switch protection, and PWM-based velocity control.
+
+## Block Diagram
+```
+┌─────────────────┐    ┌─────────────────┐    ┌──────────────────┐
+│   Input Signals │    │   Control Unit  │    │  Output Signals  │
+│                 │    │                 │    │                  │
+│ • clk_50mhz     │───▶│ • Sync Reset    │───▶│ • motor_enable   │
+│ • rst_button    │    │ • Debouncer     │    │ • pwm_outputs    │
+│ • step_btn      │    │ • Position Cnt  │    │ • position_out   │
+│ • dir_sw        │    │ • State Machine │    │ • debug_led      │
+│ • limit_switches│    │ • PWM Generator │    │                  │
+└─────────────────┘    └─────────────────┘    └──────────────────┘
+```
 
 ## Key Features
 
-- **Clock**: 50MHz internal crystal (Pin P23)
-- **Control Inputs**:
-  - Reset button (synchronized)
-  - Step button (with debouncing)
-  - Direction switch
-- **Output**: One-hot encoded motor enable signals (4 motors)
+### 1. Input Processing
+- **Clock**: 50MHz system clock
+- **Synchronized Reset**: Metastability-protected reset signal
+- **Debounced Step Input**: Noise-filtered button input
+- **Direction Control**: Switch-based direction selection
+- **Limit Switches**: Physical end-stop protection
 
-## Architecture
+### 2. Core Functionality
+- **Position Counter**: 16-bit up/down counter tracking arm position
+- **State Machine**: One-hot encoded controller for 4 motors
+- **Limit Protection**: Prevents movement beyond mechanical limits
+- **PWM Control**: Variable speed control with fixed 50% duty cycle
 
-### Main Components
-1. **Debouncer Circuit**: Filters button presses to prevent multiple triggering
-2. **Ring Counter**: Sequential circuit that rotates a single '1' through its outputs
-3. **Direction Control**: Determines shift direction (left/right)
+### 3. Output Signals
+- **Motor Enable**: One-hot encoded enable signals (4 bits)
+- **PWM Outputs**: Velocity control signals (4 bits)
+- **Position Output**: 16-bit position feedback
+- **Debug LEDs**: Visual status indicators (8 bits)
 
-### Operation
-- **Initial State**: motor_enable = "0001" (Joint 0 active)
-- **Reset**: Returns to initial state
-- **Step Advance**: On each debounced button press, shifts the active motor
-- **Direction Control**:
-  - dir_sw = '0': Rotate right (Joint 0 → 3 → 2 → 1 → 0)
-  - dir_sw = '1': Rotate left (Joint 0 → 1 → 2 → 3 → 0)
+## Operation Modes
 
-## RTL Viewer Description
-The RTL schematic would show:
-- A 4-bit register (r_q) implementing the ring counter
-- A debouncing circuit with edge detection
-- Multiplexers for directional control
-- Clock synchronization elements
-- Output directly driving the motor enable signals
+### Normal Operation
+1. Direction switch sets rotation direction (CW/CCW)
+2. Step button advances the state machine
+3. Motors activate in sequence based on direction
+4. Position counter increments/decrements accordingly
 
-## Usage
-1. Set direction using dir_sw
-2. Press step_btn to advance to next motor
-3. Use rst_button to return to initial position
+### Safety Features
+- Limit switch detection prevents over-travel
+- Reset returns system to initial state (Motor 0 active)
+- Debouncing prevents false step detection
 
-This design provides precise control over motor activation sequence with clean signal transitions ensured through debouncing and synchronous design practices.
+## Signal Description
+
+### Inputs
+- `clk_50mhz`: 50MHz master clock
+- `rst_button`: Synchronized reset signal
+- `step_btn`: Step advance button (debounced)
+- `dir_sw`: Direction control (0=CCW, 1=CW)
+- `limit_switches`: Physical limit switches (4 bits)
+
+### Outputs
+- `motor_enable`: Motor enable signals (one-hot)
+- `pwm_outputs`: PWM velocity control signals
+- `position_out`: Current position value
+- `debug_led`: Diagnostic LEDs
+
+## Implementation Details
+
+The design uses several key processes:
+1. **Synchronized Reset**: Creates stable reset signal
+2. **Input Debouncing**: Filters mechanical switch noise
+3. **Position Counting**: Tracks absolute position
+4. **State Machine**: Controls motor sequencing
+5. **PWM Generation**: Creates velocity control signals
+
+The state machine implements circular shifting with direction control and limit protection, ensuring safe operation throughout the mechanical range.
+
+## Applications
+- Robotic arm control
+- CNC machine control
+- Stepper motor systems
+- Precision positioning systems
+
+This implementation provides a robust foundation for robotic control systems with safety features and position tracking capabilities.
