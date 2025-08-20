@@ -8,7 +8,7 @@ This project implements a 4-degree-of-freedom robotic arm controller using VHDL.
 ┌─────────────────┐    ┌─────────────────┐    ┌──────────────────┐
 │   Input Signals │    │   Control Unit  │    │  Output Signals  │
 │                 │    │                 │    │                  │
-│ • clk_50mhz     │───▶│ • Sync Reset    │───▶│ • motor_enable   │
+│ • clk_50mhz     │───▶ • Sync Reset     ───▶│ • motor_enable   │
 │ • rst_button    │    │ • Debouncer     │    │ • pwm_outputs    │
 │ • step_btn      │    │ • Position Cnt  │    │ • position_out   │
 │ • dir_sw        │    │ • State Machine │    │ • debug_led      │
