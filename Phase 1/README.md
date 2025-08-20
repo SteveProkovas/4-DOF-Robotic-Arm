@@ -70,50 +70,43 @@ When the trigger for the transition is *not* asserted, the FSM stays in the same
 
 ---
 
-## Graphviz DOT (state diagram)
+## State diagram
 
-Save the block below as `fsm.dot` and render with Graphviz:
+```mermaid
+graph LR
+  IDLE["IDLE<br/>000<br/>pose=000<br/>busy=0"]
+  PRE_PICK["PRE_PICK<br/>001<br/>pose=001<br/>busy=1"]
+  MOVE_PICK["MOVE_PICK<br/>010<br/>pose=010<br/>busy=1"]
+  CLOSE_GRIP["CLOSE_GRIP<br/>011<br/>pose=011<br/>gripper=1<br/>busy=1"]
+  LIFT["LIFT<br/>100<br/>pose=100<br/>busy=1"]
+  MOVE_PLACE["MOVE_PLACE<br/>101<br/>pose=101<br/>busy=1"]
+  LOWER_PLACE["LOWER_PLACE<br/>110<br/>pose=110<br/>busy=1"]
+  OPEN_GRIP["OPEN_GRIP<br/>111<br/>pose=111<br/>busy=1"]
 
+  IDLE -->|start=1| PRE_PICK
+  IDLE -->|start=0| IDLE
+
+  PRE_PICK -->|motion_done=1| MOVE_PICK
+  PRE_PICK -->|motion_done=0| PRE_PICK
+
+  MOVE_PICK -->|motion_done=1| CLOSE_GRIP
+  MOVE_PICK -->|motion_done=0| MOVE_PICK
+
+  CLOSE_GRIP -->|grip_ok=1| LIFT
+  CLOSE_GRIP -->|grip_ok=0| CLOSE_GRIP
+
+  LIFT -->|motion_done=1| MOVE_PLACE
+  LIFT -->|motion_done=0| LIFT
+
+  MOVE_PLACE -->|motion_done=1| LOWER_PLACE
+  MOVE_PLACE -->|motion_done=0| MOVE_PLACE
+
+  LOWER_PLACE -->|motion_done=1| OPEN_GRIP
+  LOWER_PLACE -->|motion_done=0| LOWER_PLACE
+
+  OPEN_GRIP -->|motion_done=1| IDLE
+  OPEN_GRIP -->|motion_done=0| OPEN_GRIP
 ```
-digraph FSM {
-  rankdir=LR;
-  node [shape = circle];
-  IDLE [label="IDLE\n000\nbusy=0"];
-  PRE_PICK [label="PRE_PICK\n001"];
-  MOVE_PICK [label="MOVE_PICK\n010"];
-  CLOSE_GRIP [label="CLOSE_GRIP\n011\ngripper=1"];
-  LIFT [label="LIFT\n100"];
-  MOVE_PLACE [label="MOVE_PLACE\n101"];
-  LOWER_PLACE [label="LOWER_PLACE\n110"];
-  OPEN_GRIP [label="OPEN_GRIP\n111"];
-
-  IDLE -> PRE_PICK [label="start=1"];
-  IDLE -> IDLE [label="start=0"];
-
-  PRE_PICK -> MOVE_PICK [label="motion_done=1"];
-  PRE_PICK -> PRE_PICK [label="motion_done=0"];
-
-  MOVE_PICK -> CLOSE_GRIP [label="motion_done=1"];
-  MOVE_PICK -> MOVE_PICK [label="motion_done=0"];
-
-  CLOSE_GRIP -> LIFT [label="grip_ok=1"];
-  CLOSE_GRIP -> CLOSE_GRIP [label="grip_ok=0"];
-
-  LIFT -> MOVE_PLACE [label="motion_done=1"];
-  LIFT -> LIFT [label="motion_done=0"];
-
-  MOVE_PLACE -> LOWER_PLACE [label="motion_done=1"];
-  MOVE_PLACE -> MOVE_PLACE [label="motion_done=0"];
-
-  LOWER_PLACE -> OPEN_GRIP [label="motion_done=1"];
-  LOWER_PLACE -> LOWER_PLACE [label="motion_done=0"];
-
-  OPEN_GRIP -> IDLE [label="motion_done=1"];
-  OPEN_GRIP -> OPEN_GRIP [label="motion_done=0"];
-}
-```
-
----
 
 ## Complete next-state truth table (exhaustive)
 
